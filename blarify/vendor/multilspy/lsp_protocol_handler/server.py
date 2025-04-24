@@ -1,8 +1,8 @@
 """
-This file provides the implementation of the JSON-RPC client, that launches and 
+This file provides the implementation of the JSON-RPC client, that launches and
 communicates with the language server.
 
-The initial implementation of this file was obtained from 
+The initial implementation of this file was obtained from
 https://github.com/predragnikolic/OLSP under the MIT License with the following terms:
 
 MIT License
@@ -96,12 +96,15 @@ class StopLoopException(Exception):
 
 
 def create_message(payload: PayloadLike):
+    # JSON encoding is the most time-consuming part; we use separators to make the JSON string minimal.
     body = json.dumps(payload, check_circular=False, ensure_ascii=False, separators=(",", ":")).encode(ENCODING)
-    return (
-        f"Content-Length: {len(body)}\r\n".encode(ENCODING),
-        "Content-Type: application/vscode-jsonrpc; charset=utf-8\r\n\r\n".encode(ENCODING),
-        body,
+    len_body = len(body)
+    # Use bytes literals directly for less overhead than f-strings
+    header = (
+        b"Content-Length: " + str(len_body).encode(ENCODING) + b"\r\n"
+        b"Content-Type: application/vscode-jsonrpc; charset=utf-8\r\n\r\n"
     )
+    return header, body
 
 
 class MessageType:
@@ -379,10 +382,11 @@ class LanguageServerHandler:
         """
         if not self.process or not self.process.stdin:
             return
-        msg = create_message(payload)
+        header, body = create_message(payload)
         if self.logger:
             self.logger("client", "server", payload)
-        self.process.stdin.writelines(msg)
+        # Optimize writelines by joining header and body once to reduce function calls
+        self.process.stdin.write(header + body)
 
     async def _send_payload(self, payload: StringDict) -> None:
         """
