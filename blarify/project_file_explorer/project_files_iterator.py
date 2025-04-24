@@ -94,4 +94,37 @@ class ProjectFilesIterator:
         return 1024 * 1024 * mb
 
     def get_base_name(self, current_path: str) -> str:
-        return os.path.basename(current_path)
+        return current_path.rsplit("/", 1)[-1]  # Optimized
+
+    def _get_filtered_dirs(self, current_path, dirs):
+        return [d for d in dirs if not self._should_skip(os.path.join(current_path, d))]
+
+    def _get_filtered_files(self, current_path, files, level):
+        return [
+            f
+            for f in files
+            if not self._should_skip(os.path.join(current_path, f))
+            and os.path.splitext(f)[1] not in self.extensions_to_skip
+            and self._file_size_within_limit(os.path.join(current_path, f))
+        ]
+
+    def _should_skip(self, path: str) -> bool:
+        for skip_path in self.paths_to_skip:
+            if path.startswith(skip_path):
+                return True
+        base_name = self.get_base_name(path)
+        if base_name in self.names_to_skip:
+            return True
+        return False
+
+    def _file_size_within_limit(self, file_path: str) -> bool:
+        return os.path.getsize(file_path) <= self.max_file_size_mb * 1024 * 1024
+
+    def get_path_level_relative_to_root(self, path: str) -> int:
+        relative_path = os.path.relpath(path, self.root_path)
+        if relative_path == ".":
+            return 0
+        return relative_path.count(os.sep)
+
+    def empty_folders_from_dirs(self, current_path, dirs, level):
+        return [d for d in dirs if not os.listdir(os.path.join(current_path, d))]
