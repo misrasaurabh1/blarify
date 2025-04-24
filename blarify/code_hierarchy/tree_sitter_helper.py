@@ -1,4 +1,4 @@
-from tree_sitter import Tree, Parser
+from tree_sitter import Node as TreeSitterNode, Tree, Parser
 
 from blarify.code_hierarchy.languages.FoundRelationshipScope import FoundRelationshipScope
 from blarify.graph.node import NodeFactory
@@ -8,6 +8,7 @@ from blarify.graph.node import NodeLabels
 from blarify.project_file_explorer import File
 from typing import List, TYPE_CHECKING, Tuple, Optional
 from blarify.graph.relationship import RelationshipType
+from blarify.graph.graph_environment import GraphEnvironment
 
 if TYPE_CHECKING:
     from tree_sitter import Node as TreeSitterNode
@@ -30,6 +31,7 @@ class TreeSitterHelper:
         self.language_definitions = language_definitions
         self.parsers = self.language_definitions.get_parsers_for_extensions()
         self.graph_environment = graph_environment
+        self.current_path = ""  # Ensure current_path is initialized
 
     def get_all_identifiers(self, node: "FileNode") -> List["Reference"]:
         self.current_path = node.path
@@ -190,13 +192,19 @@ class TreeSitterHelper:
         return code_snippet
 
     def _get_reference_from_node(self, node: "TreeSitterNode") -> "Reference":
-        return Reference(
-            range=Range(
-                start=Point(line=node.start_point[0], character=node.start_point[1]),
-                end=Point(line=node.end_point[0], character=node.end_point[1]),
-            ),
-            uri=self.current_path,
-        )
+        # Cache point values to avoid repeated access
+        start_point = node.start_point
+        end_point = node.end_point
+
+        # Create Point objects
+        start = Point(line=start_point[0], character=start_point[1])
+        end = Point(line=end_point[0], character=end_point[1])
+
+        # Create Range object
+        range = Range(start=start, end=end)
+
+        # Return Reference object
+        return Reference(range=range, uri=self.current_path)
 
     def _process_node_snippet(self, node: "TreeSitterNode") -> Tuple[str, "Reference"]:
         node_reference = self._get_reference_from_node(node)
