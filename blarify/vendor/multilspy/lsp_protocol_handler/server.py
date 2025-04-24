@@ -1,8 +1,8 @@
 """
-This file provides the implementation of the JSON-RPC client, that launches and 
+This file provides the implementation of the JSON-RPC client, that launches and
 communicates with the language server.
 
-The initial implementation of this file was obtained from 
+The initial implementation of this file was obtained from
 https://github.com/predragnikolic/OLSP under the MIT License with the following terms:
 
 MIT License
@@ -129,13 +129,13 @@ class Request:
 
 
 def content_length(line: bytes) -> Optional[int]:
-    if line.startswith(b"Content-Length: "):
-        _, value = line.split(b"Content-Length: ")
-        value = value.strip()
+    prefix = b"Content-Length: "
+    if line.startswith(prefix):
+        value = line[len(prefix) :].strip()
         try:
             return int(value)
         except ValueError:
-            raise ValueError("Invalid Content-Length header: {}".format(value))
+            raise ValueError(f"Invalid Content-Length header: {value.decode()}")
     return None
 
 
