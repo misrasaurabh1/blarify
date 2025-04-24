@@ -1,5 +1,4 @@
 from blarify.graph.node.utils.node_factory import NodeFactory
-from blarify.graph.node.types.node_labels import NodeLabels
 from blarify.project_graph_creator import ProjectGraphCreator
 from blarify.graph.relationship import RelationshipType
 from blarify.graph.graph import Graph
@@ -10,7 +9,6 @@ from blarify.graph.node import FileNode
 from typing import List
 from dataclasses import dataclass
 from enum import Enum
-from copy import copy
 from blarify.graph.external_relationship_store import ExternalRelationshipStore
 from blarify.graph.graph_update import GraphUpdate
 from blarify.graph.node.utils.id_calculator import IdCalculator
@@ -69,14 +67,17 @@ class ProjectGraphDiffCreator(ProjectGraphCreator):
         self.graph_environment = graph_environment
         self.pr_environment = pr_environment
 
-        self.added_paths = self.get_added_paths()
-        self.modified_paths = self.get_modified_paths()
+        self.added_paths = []
+        self.modified_paths = []
+        self.added_and_modified_paths = []
 
-        self.added_and_modified_paths = self.added_paths + self.modified_paths
+        self._process_file_diffs()
+
         self.deleted_nodes_added_paths = []
 
     def get_added_paths(self) -> List[str]:
-        return [file_diff.path for file_diff in self.file_diffs if file_diff.change_type == ChangeType.ADDED]
+        # Already handled in constructor
+        return self.added_paths
 
     def get_modified_paths(self) -> List[str]:
         return [file_diff.path for file_diff in self.file_diffs if file_diff.change_type == ChangeType.MODIFIED]
@@ -113,7 +114,9 @@ class ProjectGraphDiffCreator(ProjectGraphCreator):
 
         return GraphUpdate(self.graph, self.external_relationship_store)
 
-    def build_hierarchy_only_with_previous_node_states(self, previous_node_states: List[PreviousNodeState]) -> GraphUpdate:
+    def build_hierarchy_only_with_previous_node_states(
+        self, previous_node_states: List[PreviousNodeState]
+    ) -> GraphUpdate:
         self._create_code_hierarchy()
         self.mark_updated_and_added_nodes_as_diff()
         self.create_relationships_from_previous_node_states(previous_node_states)
@@ -260,7 +263,10 @@ class ProjectGraphDiffCreator(ProjectGraphCreator):
         identifiers = helper.get_all_identifiers(file_node)
         filtered_identifiers = self.remove_definitions_from_identifiers(definitions, identifiers)
 
-        return {self.lsp_query_helper.get_definition_path_for_reference(ref, file_node.extension) for ref in filtered_identifiers}
+        return {
+            self.lsp_query_helper.get_definition_path_for_reference(ref, file_node.extension)
+            for ref in filtered_identifiers
+        }
 
     def remove_definitions_from_identifiers(self, definitions, identifiers):
         return [identifier for identifier in identifiers if identifier not in definitions]
@@ -298,3 +304,15 @@ class ProjectGraphDiffCreator(ProjectGraphCreator):
         )
 
         return original_file_node_id
+
+    def _process_file_diffs(self):
+        """
+        Process file_diffs to extract added and modified paths in a single iteration.
+        """
+        for file_diff in self.file_diffs:
+            if file_diff.change_type == ChangeType.ADDED:
+                self.added_paths.append(file_diff.path)
+                self.added_and_modified_paths.append(file_diff.path)
+            elif file_diff.change_type == ChangeType.MODIFIED:
+                self.modified_paths.append(file_diff.path)
+                self.added_and_modified_paths.append(file_diff.path)
