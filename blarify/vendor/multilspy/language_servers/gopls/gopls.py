@@ -23,7 +23,7 @@ class Gopls(LanguageServer):
     def _get_go_version():
         """Get the installed Go version or None if not found."""
         try:
-            result = subprocess.run(['go', 'version'], capture_output=True, text=True)
+            result = subprocess.run(["go", "version"], capture_output=True, text=True)
             if result.returncode == 0:
                 return result.stdout.strip()
         except FileNotFoundError:
@@ -34,7 +34,7 @@ class Gopls(LanguageServer):
     def _get_gopls_version():
         """Get the installed gopls version or None if not found."""
         try:
-            result = subprocess.run(['gopls', 'version'], capture_output=True, text=True)
+            result = subprocess.run(["gopls", "version"], capture_output=True, text=True)
             if result.returncode == 0:
                 return result.stdout.strip()
         except FileNotFoundError:
@@ -47,30 +47,25 @@ class Gopls(LanguageServer):
         Check if required Go runtime dependencies are available.
         Raises RuntimeError with helpful message if dependencies are missing.
         """
-        missing_deps = []
-        
-        # Check for Go installation
-        go_version = cls._get_go_version()
-        if not go_version:
-            missing_deps.append(("Go", "https://golang.org/doc/install"))
-        
-        # Check for gopls
-        gopls_version = cls._get_gopls_version()
-        if not gopls_version:
-            missing_deps.append(("gopls", "https://pkg.go.dev/golang.org/x/tools/gopls#section-readme"))
-        
+        dependencies = [
+            ("go", "https://golang.org/doc/install"),
+            ("gopls", "https://pkg.go.dev/golang.org/x/tools/gopls#section-readme"),
+        ]
+
+        missing_deps = [(name, url) for name, url in dependencies if not cls._get_version([name, "version"])]
+
         if missing_deps:
-            error_msg = "Missing required dependencies:\n"
-            for dep, install_url in missing_deps:
-                error_msg += f"- {dep}: Please install from {install_url}\n"
+            error_msg = "Missing required dependencies:\n" + "\n".join(
+                f"- {dep}: Please install from {install_url}" for dep, install_url in missing_deps
+            )
             raise RuntimeError(error_msg)
-        
+
         return True
 
     def __init__(self, config: MultilspyConfig, logger: MultilspyLogger, repository_root_path: str):
         # Check runtime dependencies before initializing
         self.setup_runtime_dependency()
-        
+
         super().__init__(
             config,
             logger,
@@ -108,6 +103,7 @@ class Gopls(LanguageServer):
     @asynccontextmanager
     async def start_server(self) -> AsyncIterator["Gopls"]:
         """Start gopls server process"""
+
         async def register_capability_handler(params):
             return
 
@@ -132,7 +128,7 @@ class Gopls(LanguageServer):
                 logging.INFO,
             )
             init_response = await self.server.send.initialize(initialize_params)
-            
+
             # Verify server capabilities
             assert "textDocumentSync" in init_response["capabilities"]
             assert "completionProvider" in init_response["capabilities"]
@@ -149,3 +145,14 @@ class Gopls(LanguageServer):
 
             await self.server.shutdown()
             await self.server.stop()
+
+    @staticmethod
+    def _get_version(command):
+        """Get the installed version of a command or None if not found."""
+        try:
+            result = subprocess.run(command, capture_output=True, text=True)
+            if result.returncode == 0:
+                return result.stdout.strip()
+        except FileNotFoundError:
+            return None
+        return None
