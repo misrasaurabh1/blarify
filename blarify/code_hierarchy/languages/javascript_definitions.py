@@ -14,14 +14,17 @@ from typing import Dict
 class JavascriptDefinitions(LanguageDefinitions):
     CONTROL_FLOW_STATEMENTS = ["for_statement", "if_statement", "while_statement", "else_clause"]
     CONSEQUENCE_STATEMENTS = ["statement_block"]
-    
+
     def get_language_name() -> str:
         return "javascript"
 
+    @staticmethod
     def get_parsers_for_extensions() -> Dict[str, Parser]:
+        # Generate the Language object once and reuse it
+        language = Language(tsjavascript.language())
         return {
-            ".js": Parser(Language(tsjavascript.language())),
-            ".jsx": Parser(Language(tsjavascript.language())),
+            ".js": Parser(language),
+            ".jsx": Parser(language),
         }
 
     @staticmethod
