@@ -14,7 +14,7 @@ from typing import Dict
 class JavascriptDefinitions(LanguageDefinitions):
     CONTROL_FLOW_STATEMENTS = ["for_statement", "if_statement", "while_statement", "else_clause"]
     CONSEQUENCE_STATEMENTS = ["statement_block"]
-    
+
     def get_language_name() -> str:
         return "javascript"
 
@@ -40,7 +40,10 @@ class JavascriptDefinitions(LanguageDefinitions):
 
     @staticmethod
     def get_identifier_node(node: Node) -> Node:
-        return LanguageDefinitions._get_identifier_node_base_implementation(node)
+        if identifier := node.child_by_field_name("name"):
+            return identifier
+        error = f"No identifier node found for node type {node.type} at {node.start_point} - {node.end_point}"
+        raise IdentifierNodeNotFound(error)
 
     @staticmethod
     def get_relationship_type(node: GraphNode, node_in_point_reference: Node) -> Optional[FoundRelationshipScope]:
