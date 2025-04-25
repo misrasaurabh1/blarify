@@ -14,7 +14,7 @@ from typing import Dict
 class JavascriptDefinitions(LanguageDefinitions):
     CONTROL_FLOW_STATEMENTS = ["for_statement", "if_statement", "while_statement", "else_clause"]
     CONSEQUENCE_STATEMENTS = ["statement_block"]
-    
+
     def get_language_name() -> str:
         return "javascript"
 
@@ -26,12 +26,14 @@ class JavascriptDefinitions(LanguageDefinitions):
 
     @staticmethod
     def should_create_node(node: Node) -> bool:
-        if node.type == "variable_declarator":
-            return JavascriptDefinitions._is_variable_declaration_arrow_function(node)
+        node_type = node.type
+        if node_type == "variable_declarator":
+            children = node.child_by_field_name("value")
+            if children:
+                return children.type == "arrow_function"
+            return False
 
-        return LanguageDefinitions._should_create_node_base_implementation(
-            node, ["class_declaration", "function_declaration", "method_definition", "interface_declaration"]
-        )
+        return node_type in ["class_declaration", "function_declaration", "method_definition", "interface_declaration"]
 
     @staticmethod
     def _is_variable_declaration_arrow_function(node: Node) -> bool:
